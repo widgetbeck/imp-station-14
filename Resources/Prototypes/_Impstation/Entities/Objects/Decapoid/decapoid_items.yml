@@ -24,6 +24,7 @@
       collection: AlienClaw
   - type: Unremoveable
   - type: Blocking
+    moveWhileBlocking: true
     passiveBlockModifier:
       coefficients:
         Blunt: 0.95

@@ -145,6 +145,9 @@
         Blunt: 5
     clumsySound:
       path: /Audio/_Impstation/Effects/Clumsy/crab_snap.ogg # the game gets really touchy about having that initial forward slash.
+    gunAllowedWhitelist:
+      tags:
+        - DecapoidUsable
     clumsyHypo: false # these variables were created for this purpose and have been upstreamed
     clumsyVaulting: false
     clumsyDefib: false

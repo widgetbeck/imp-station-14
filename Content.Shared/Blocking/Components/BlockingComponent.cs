@@ -26,6 +26,24 @@ public sealed partial class BlockingComponent : Component
     public bool IsBlocking;
 
     /// <summary>
+    /// Imp. Switches from the current blocking system for my new one, which ignores all the tile-locking stuff in favor of a movespeed change.
+    /// </summary>
+    [DataField]
+    public bool MoveWhileBlocking;
+
+    [DataField]
+    public float MovementSpeedModifier = 0.2f;
+
+    /// <summary>
+    /// Whether or not to perform a "perfect guard," or brief period of reflect chance, immediately after blocking
+    /// </summary>
+    [DataField]
+    public bool PerfectGuard;
+
+    [DataField]
+    public float GuardChance = 0.9f;
+
+    /// <summary>
     /// The ID for the fixture that's dynamically created when blocking
     /// </summary>
     public const string BlockFixtureID = "blocking-active";

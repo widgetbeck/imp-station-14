@@ -8,6 +8,7 @@ using Content.Shared.Medical;
 using Content.Shared.Popups;
 using Content.Shared.Stunnable;
 using Content.Shared.Weapons.Ranged.Events;
+using Content.Shared.Whitelist;
 using Robust.Shared.Audio.Systems;
 using Robust.Shared.Configuration;
 using Robust.Shared.Random;
@@ -24,7 +25,7 @@ public sealed class ClumsySystem : EntitySystem
     [Dependency] private readonly DamageableSystem _damageable = default!;
     [Dependency] private readonly IGameTiming _timing = default!;
     [Dependency] private readonly IConfigurationManager _cfg = default!;
-
+    [Dependency] private readonly EntityWhitelistSystem _whitelist = default!;
     public override void Initialize()
     {
         SubscribeLocalEvent<ClumsyComponent, SelfBeforeHyposprayInjectsEvent>(BeforeHyposprayEvent);
@@ -38,7 +39,7 @@ public sealed class ClumsySystem : EntitySystem
     private void BeforeHyposprayEvent(Entity<ClumsyComponent> ent, ref SelfBeforeHyposprayInjectsEvent args)
     {
         // Clumsy people sometimes inject themselves! Apparently syringes are clumsy proof...
-    
+
         // checks if ClumsyHypo is false, if so, skips.
         if (!ent.Comp.ClumsyHypo)
             return;
@@ -74,6 +75,9 @@ public sealed class ClumsySystem : EntitySystem
             return;
 
         if (args.Gun.Comp.ClumsyProof)
+            return;
+
+        if (_whitelist.IsBlacklistPass(ent.Comp.GunAllowedWhitelist, args.Gun.Owner)) // imp. for decapoids mostly
             return;
 
         if (!_random.Prob(ent.Comp.ClumsyDefaultCheck))

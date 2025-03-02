@@ -123,6 +123,7 @@
     tags:
       - Pickaxe
       - Crusher
+      - DecapoidUsable # imp
   - type: Sprite
     sprite: Objects/Weapons/Melee/crusher.rsi
   - type: AmmoCounter
@@ -229,6 +230,7 @@
     tags:
       - Pickaxe
       - Crusher
+      - DecapoidUsable # imp
   - type: Item
     size: Ginormous
     sprite: Objects/Weapons/Melee/crusher_glaive-inhands.rsi

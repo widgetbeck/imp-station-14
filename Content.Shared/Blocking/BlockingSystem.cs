@@ -7,12 +7,15 @@ using Content.Shared.Hands.Components;
 using Content.Shared.Hands.EntitySystems;
 using Content.Shared.IdentityManagement;
 using Content.Shared.Interaction.Events;
+using Content.Shared.Inventory;
 using Content.Shared.Maps;
 using Content.Shared.Mobs.Components;
+using Content.Shared.Movement.Systems;
 using Content.Shared.Physics;
 using Content.Shared.Popups;
 using Content.Shared.Toggleable;
 using Content.Shared.Verbs;
+using Robust.Shared.Containers;
 using Robust.Shared.Network;
 using Robust.Shared.Physics;
 using Robust.Shared.Physics.Components;
@@ -37,6 +40,8 @@ public sealed partial class BlockingSystem : EntitySystem
     [Dependency] private readonly ExamineSystemShared _examine = default!;
     [Dependency] private readonly INetManager _net = default!;
     [Dependency] private readonly IGameTiming _gameTiming = default!;
+    [Dependency] private readonly MovementSpeedModifierSystem _movementSpeed = default!; // imp
+    [Dependency] private readonly SharedContainerSystem _container = default!; // imp
 
     public override void Initialize()
     {
@@ -54,12 +59,20 @@ public sealed partial class BlockingSystem : EntitySystem
 
         SubscribeLocalEvent<BlockingComponent, GetVerbsEvent<ExamineVerb>>(OnVerbExamine);
         SubscribeLocalEvent<BlockingComponent, MapInitEvent>(OnMapInit);
+
+        SubscribeLocalEvent<BlockingComponent, InventoryRelayedEvent<RefreshMovementSpeedModifiersEvent>>(OnRefreshMovespeed); // imp
     }
 
     private void OnMapInit(EntityUid uid, BlockingComponent component, MapInitEvent args)
     {
         _actionContainer.EnsureAction(uid, ref component.BlockingToggleActionEntity, component.BlockingToggleAction);
         Dirty(uid, component);
+    }
+
+    private void OnRefreshMovespeed(EntityUid uid, BlockingComponent component, InventoryRelayedEvent<RefreshMovementSpeedModifiersEvent> args)
+    {
+        if (component.IsBlocking && component.MoveWhileBlocking)
+            args.Args.ModifySpeed(component.MovementSpeedModifier, component.MovementSpeedModifier);
     }
 
     private void OnEquip(EntityUid uid, BlockingComponent component, GotEquippedHandEvent args)
@@ -116,10 +129,20 @@ public sealed partial class BlockingSystem : EntitySystem
             }
         }
 
-        if (component.IsBlocking)
-            StopBlocking(uid, component, args.Performer);
+        if (component.MoveWhileBlocking) // imp. for decapoids
+        {
+            if (component.IsBlocking)
+                StopBlockingNoAnchor(uid, component, args.Performer);
+            else
+                StartBlockingNoAnchor(uid, component, args.Performer);
+        }
         else
-            StartBlocking(uid, component, args.Performer);
+        {
+            if (component.IsBlocking)
+                StopBlocking(uid, component, args.Performer);
+            else
+                StartBlocking(uid, component, args.Performer);
+        }
 
         args.Handled = true;
     }
@@ -132,6 +155,79 @@ public sealed partial class BlockingSystem : EntitySystem
             _actionsSystem.RemoveProvidedActions(component.User.Value, uid);
             StopBlockingHelper(uid, component, component.User.Value);
         }
+    }
+
+    private bool StartBlockingNoAnchor(EntityUid item, BlockingComponent component, EntityUid user)
+    {
+        if (component.IsBlocking)
+            return false;
+
+        var shieldName = Name(item);
+
+        var blockerName = Identity.Entity(user, EntityManager);
+        var msgUser = Loc.GetString("action-popup-blocking-user", ("shield", shieldName));
+        var msgOther = Loc.GetString("action-popup-blocking-other", ("blockerName", blockerName), ("shield", shieldName));
+
+        if (component.BlockingToggleAction != null)
+        {
+            // Don't allow someone to block if they're not holding the shield
+            if (!_handsSystem.IsHolding(user, item, out _))
+            {
+                CantBlockError(user);
+                return false;
+            }
+
+            _actionsSystem.SetToggled(component.BlockingToggleActionEntity, true);
+
+            if (_gameTiming.IsFirstTimePredicted)
+            {
+                _popupSystem.PopupEntity(msgOther, user, Filter.PvsExcept(user), true);
+                if (_gameTiming.InPrediction)
+                    _popupSystem.PopupEntity(msgUser, user, user);
+            }
+        }
+
+        component.IsBlocking = true;
+        Dirty(item, component);
+        if (_container.TryGetContainingContainer((item, null, null), out var container))
+        {
+            _movementSpeed.RefreshMovementSpeedModifiers(container.Owner);
+        }
+
+        return true;
+    }
+
+    private bool StopBlockingNoAnchor(EntityUid item, BlockingComponent component, EntityUid user)
+    {
+        if (!component.IsBlocking)
+            return false;
+
+        var shieldName = Name(item);
+
+        var blockerName = Identity.Entity(user, EntityManager);
+        var msgUser = Loc.GetString("action-popup-blocking-disabling-user", ("shield", shieldName));
+        var msgOther = Loc.GetString("action-popup-blocking-disabling-other", ("blockerName", blockerName), ("shield", shieldName));
+
+        if (component.BlockingToggleAction != null)
+        {
+            _actionsSystem.SetToggled(component.BlockingToggleActionEntity, false);
+
+            if (_gameTiming.IsFirstTimePredicted)
+            {
+                _popupSystem.PopupEntity(msgOther, user, Filter.PvsExcept(user), true);
+                if (_gameTiming.InPrediction)
+                    _popupSystem.PopupEntity(msgUser, user, user);
+            }
+        }
+
+        component.IsBlocking = false;
+        Dirty(item, component);
+        if (_container.TryGetContainingContainer((item, null, null), out var container))
+        {
+            _movementSpeed.RefreshMovementSpeedModifiers(container.Owner);
+        }
+
+        return true;
     }
 
     /// <summary>

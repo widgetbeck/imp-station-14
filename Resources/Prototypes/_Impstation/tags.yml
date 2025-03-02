@@ -24,7 +24,7 @@
   id: DecapoidClaw
 
 - type: Tag
-  id: DecapoidGenericTag
+  id: DecapoidUsable
 
 - type: Tag
   id: DionaMinded

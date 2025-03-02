@@ -1,4 +1,5 @@
 using Content.Shared.Damage;
+using Content.Shared.Whitelist;
 using Robust.Shared.Audio;
 using Robust.Shared.GameStates;
 
@@ -58,6 +59,9 @@ public sealed partial class ClumsyComponent : Component
     /// </summary>
     [DataField]
     public SoundSpecifier GunShootFailSound = new SoundPathSpecifier("/Audio/Weapons/Guns/Gunshots/bang.ogg");
+
+    [DataField]
+    public EntityWhitelist? GunAllowedWhitelist = null;
 
     /// <summary>
     ///      Whether or not to apply Clumsy to hyposprays.
